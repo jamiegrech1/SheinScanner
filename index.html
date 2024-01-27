@@ -79,8 +79,8 @@
           imageData,
           'eng',  // language code (English in this case)
           { logger: info => console.log(info) }  // logger for debugging (optional)
-        ).then(({ data: { text } }) => {
-          const detectedText = text.trim();
+        ).then(({ data }) => {
+          const detectedText = data ? data.text.trim() : '';
           textsFound.push(detectedText);
           displayResult(textsFound);
         }).catch(error => {
