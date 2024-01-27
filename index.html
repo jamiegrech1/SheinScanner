@@ -64,7 +64,7 @@
               const row = csvRows[i].split(',');
               const code = row[0];
 
-              for (let j = 1; j < row.length; j += 2) {
+              for (let j = 0; j < row.length; j += 2) {
                 const person = header[j].trim();
                 const price = row[j + 1].trim();
                 const key = `${code}_${person}`;
