@@ -48,9 +48,25 @@
     document.addEventListener('DOMContentLoaded', function() {
       const preview = document.getElementById('preview');
       const result = document.getElementById('result');
+      const ownersCsvData = `
+        sh2308253854771772,Brandon
+        sh2303234365222808,Chris
+        sh2311296645482762,Gertrude
+        // Add more entries as needed
+      `;
+
+      // Convert CSV data to a dictionary for quick lookup
+      const ownersDict = ownersCsvData
+        .trim()
+        .split('\n')
+        .map(line => line.split(','))
+        .reduce((acc, [code, owner]) => {
+          acc[code] = owner;
+          return acc;
+        }, {});
 
       // Initialize camera stream
-      navigator.mediaDevices.getUserMedia({ video: true })
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
         .then(function(stream) {
           const video = document.createElement('video');
           preview.appendChild(video);
@@ -79,14 +95,20 @@
           'eng',  // language code (English in this case)
           { logger: info => console.log(info) }  // logger for debugging (optional)
         ).then(({ data: { text } }) => {
-          displayResult(text.trim());
+          const detectedCode = text.trim();
+          const owner = ownersDict[detectedCode];
+          displayResult(detectedCode, owner);
         }).catch(error => {
           console.error('OCR error:', error);
         });
       }
 
-      function displayResult(code) {
-        result.innerHTML = `Detected Code: ${code}`;
+      function displayResult(detectedCode, owner) {
+        if (owner) {
+          result.innerHTML = `Detected Code: ${detectedCode}<br>Item belongs to: ${owner}`;
+        } else {
+          result.innerHTML = `Detected Code: ${detectedCode}<br>Owner not found in CSV data.`;
+        }
       }
     });
   </script>
