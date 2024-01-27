@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SheIn Barcode Scanner</title>
+  <title>SheIn Code Detector</title>
   <style>
     body {
       font-family: 'Arial', sans-serif;
@@ -34,113 +34,60 @@
       margin-top: 20px;
       font-size: 18px;
     }
-
-    #fileInput {
-      margin-top: 20px;
-      padding: 10px;
-      background-color: #4caf50;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
   </style>
 </head>
 <body>
   <div id="app-container">
-    <h1>SheIn Barcode Scanner</h1>
-    <input type="file" accept=".csv" id="fileInput">
+    <h1>SheIn Code Detector</h1>
     <div id="preview"></div>
     <div id="result"></div>
   </div>
 
-  <script src="https://cdn.rawgit.com/serratus/quaggaJS/0.12.1/dist/quagga.min.js"></script>
+  <script src="https://cdn.rawgit.com/naptha/tesseract.js/1.0.10/dist/tesseract.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      const fileInput = document.getElementById('fileInput');
       const preview = document.getElementById('preview');
       const result = document.getElementById('result');
 
-      fileInput.addEventListener('change', handleFile);
+      // Initialize camera stream
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(function(stream) {
+          const video = document.createElement('video');
+          preview.appendChild(video);
+          video.srcObject = stream;
+          video.play();
 
-      function handleFile(event) {
-        const file = event.target.files[0];
-        if (!file) return;
+          // Capture frames from the camera and process using Tesseract.js
+          setInterval(function() {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        const reader = new FileReader();
-        reader.onload = function (e) {
-          const csvData = e.target.result;
-          processCSV(csvData);
-        };
-        reader.readAsText(file);
-      }
-
-      function loadCSV() {
-        const xhr = new XMLHttpRequest();
-        xhr.onreadystatechange = function () {
-          if (xhr.readyState === XMLHttpRequest.DONE) {
-            if (xhr.status === 200) {
-              const csvData = xhr.responseText;
-              processCSV(csvData);
-            } else {
-              console.error('Failed to load CSV file');
-            }
-          }
-        };
-        xhr.open('GET', 'order.csv', true);
-        xhr.send();
-      }
-
-      function initQuagga() {
-        Quagga.init({
-          inputStream: {
-            name: 'Live',
-            type: 'LiveStream',
-            target: preview,
-            constraints: {
-              width: 400,
-              height: 300,
-              facingMode: 'environment',
-            },
-          },
-          decoder: {
-            readers: ['ean_reader', 'upc_reader', 'code_128_reader'],
-          },
-        }, function (err) {
-          if (err) {
-            console.error(err);
-            return;
-          }
-          Quagga.start();
+            const imageData = canvas.toDataURL('image/png');
+            processImage(imageData);
+          }, 1000); // Adjust the interval as needed
+        })
+        .catch(function(err) {
+          console.error('Error accessing camera:', err);
         });
 
-        Quagga.onDetected(function (result) {
-          displayResult(result);
-          Quagga.stop();
+      function processImage(imageData) {
+        // Perform OCR using Tesseract.js
+        Tesseract.recognize(
+          imageData,
+          'eng',  // language code (English in this case)
+          { logger: info => console.log(info) }  // logger for debugging (optional)
+        ).then(({ data: { text } }) => {
+          displayResult(text.trim());
+        }).catch(error => {
+          console.error('OCR error:', error);
         });
       }
 
-      function processCSV(csvData) {
-        const rows = csvData.split('\n');
-        const header = rows[0].split(',');
-        const data = rows.slice(1).map(row => row.split(','));
-
-        initQuagga();
+      function displayResult(code) {
+        result.innerHTML = `Detected Code: ${code}`;
       }
-
-      function displayResult(result) {
-        const barcode = result.codeResult.code;
-        const index = header.indexOf(barcode);
-        if (index !== -1) {
-          const name = header[index - 1];
-          const price = data[index];
-          result.innerHTML = `Item belongs to: ${name}<br>Price: ${price}`;
-        } else {
-          result.innerHTML = 'Barcode not found in the CSV data.';
-        }
-      }
-
-      loadCSV();
     });
   </script>
 </body>
