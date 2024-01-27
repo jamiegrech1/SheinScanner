@@ -41,6 +41,13 @@
       font-size: 16px;
     }
 
+    #continue-scanning-btn {
+      margin-top: 10px;
+      padding: 8px 16px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
     video {
       height: 200px;
     }
@@ -52,6 +59,7 @@
     <div id="preview" onclick="startScanning()"></div>
     <div id="result"></div>
     <div id="scanning-indicator">Scanning...</div>
+    <button id="continue-scanning-btn" onclick="continueScanning()">Continue Scanning</button>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.2/tesseract.min.js"></script>
@@ -60,6 +68,7 @@
       const preview = document.getElementById('preview');
       const result = document.getElementById('result');
       const scanningIndicator = document.getElementById('scanning-indicator');
+      const continueScanningBtn = document.getElementById('continue-scanning-btn');
       const textsFound = [];
       let scanningPaused = false;
 
@@ -144,11 +153,19 @@
       function pauseScanning() {
         scanningPaused = true;
         scanningIndicator.textContent = 'Not Scanning';
+        continueScanningBtn.style.display = 'inline';
       }
 
       function startScanning() {
         scanningPaused = false;
         scanningIndicator.textContent = 'Scanning...';
+        continueScanningBtn.style.display = 'none';
+      }
+
+      function continueScanning() {
+        scanningPaused = false;
+        scanningIndicator.textContent = 'Scanning...';
+        continueScanningBtn.style.display = 'none';
       }
     });
   </script>
