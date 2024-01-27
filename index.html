@@ -62,10 +62,11 @@
 
             for (let i = 1; i < csvRows.length; i++) {
               const row = csvRows[i].split(',');
-              const code = row[0];
+              
 
               for (let j = 0; j < row.length; j += 2) {
                 const person = header[j].trim();
+				const code = row[j];
                 const price = row[j + 1].trim();
                 const key = `${code}_${person}`;
                 csvDict[key] = { person, price };
@@ -109,7 +110,7 @@
         textsFound.push(detectedText);
 
         // Lookup owner in the CSV dictionary
-        const ownerKey = Object.keys(csvDict).find(key => detectedText.startsWith(key.split('_')[0]));
+        const ownerKey = Object.keys(csvDict).find(key => detectedText.includes(key.split('_')[0]));
         const ownerInfo = ownerKey ? csvDict[ownerKey] : null;
 
         displayResult(textsFound, ownerInfo);
@@ -119,9 +120,6 @@
         if (ownerInfo) {
           result.innerHTML = `<b>Detected Texts:</b><br>${texts.join('<br>')}`;
           result.innerHTML += `<br>Item belongs to: ${ownerInfo.person} | Price: ${ownerInfo.price}`;
-        } else {
-          result.innerHTML = `<b>Detected Texts:</b><br>${texts.join('<br>')}`;
-          result.innerHTML += `<br>Owner not found in CSV data.`;
         }
       }
     });
