@@ -35,6 +35,9 @@
       margin-top: 20px;
       font-size: 18px;
     }
+	video{
+	height:200px;
+	}
   </style>
 </head>
 <body>
@@ -119,7 +122,7 @@
 
       function displayResult(texts, ownerInfo) {
         if (ownerInfo) {          
-          result.innerHTML += `<br>Item belongs to: ${ownerInfo.person} | Price: ${ownerInfo.price}`;
+          result.innerHTML = `<br>Item belongs to: ${ownerInfo.person} | Price: ${ownerInfo.price}` + result.innerHTML;
         }
       }
     });
