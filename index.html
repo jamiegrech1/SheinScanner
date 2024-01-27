@@ -1,97 +1,97 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SheIn Code Detector</title>
-  <style>
-    body {
-      font-family: 'Arial', sans-serif;
-      background-color: #f0f0f0;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Scanner</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
 
-    #app-container {
-      background-color: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-      text-align: center;
-    }
+        #app-container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
 
-    #preview {
-      width: 100%;
-      max-width: 400px;
-      margin-top: 20px;
-    }
+        #preview {
+            width: 100%;
+            max-width: 400px;
+            margin-top: 20px;
+        }
 
-    #result {
-      margin-top: 20px;
-      font-size: 18px;
-    }
-  </style>
+        #result {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+    </style>
 </head>
 <body>
-  <div id="app-container">
-    <h1>SheIn Code Detector</h1>
-    <div id="preview"></div>
-    <div id="result"></div>
-  </div>
+    <div id="app-container">
+        <h1>Text Scanner</h1>
+        <div id="preview"></div>
+        <div id="result"></div>
+    </div>
 
-  <script src="https://cdn.rawgit.com/naptha/tesseract.js/1.0.10/dist/tesseract.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      const preview = document.getElementById('preview');
-      const result = document.getElementById('result');
-      const textsFound = [];
+    <script src="https://cdn.jsdelivr.net/npm/@google/ml-kit/barcode-scanning"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@google/ml-kit/text-recognition"></script>
 
-      // Initialize camera stream
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-        .then(function(stream) {
-          const video = document.createElement('video');
-          preview.appendChild(video);
-          video.srcObject = stream;
-          video.play();
+    <script>
+        document.addEventListener('DOMContentLoaded', async function() {
+            const preview = document.getElementById('preview');
+            const result = document.getElementById('result');
 
-          // Capture frames from the camera and process using Tesseract.js
-          setInterval(function() {
+            // Initialize camera and barcode scanner
+            const camera = await navigator.mediaDevices.getUserMedia({ video: true });
+            const barcodeScanner = new MLKit.BarcodeScanner(camera);
+
+            // Display live camera preview
             const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+            canvas.width = camera.videoWidth;
+            canvas.height = camera.videoHeight;
+            const ctx = canvas.getContext('2d');
 
-            const imageData = canvas.toDataURL('image/png');
-            processImage(imageData);
-          }, 1000); // Adjust the interval as needed
-        })
-        .catch(function(err) {
-          console.error('Error accessing camera:', err);
+            const videoStream = camera.getVideoTracks()[0];
+            videoStream.onended = () => {
+                result.innerHTML = 'Camera stream ended';
+            };
+
+            preview.appendChild(canvas);
+            videoStream.getTracks()[0].ondataavailable = (event) => {
+                const dataURL = canvas.toDataURL('image/jpeg');
+                const image = new Image();
+                image.onload = () => {
+                    const result = await barcodeScanner.scan(image);
+                    if (result.text) {
+                        // Process and display text recognition result
+                        const textRecognizer = new MLKit.TextRecognizer();
+                        const text = await textRecognizer.processImage(image);
+                        const recognizedText = text.textBlocks.map((textBlock) => {
+                            return textBlock.text;
+                        });
+
+                        result.text = recognizedText.join('\n');
+                        result.forEach((text) => {
+                            result.innerHTML += `<p>${text}</p>`;
+                        });
+                    } else {
+                        // No text detected
+                        result.innerHTML = 'No text detected';
+                    }
+                };
+                image.src = dataURL;
+            };
         });
-
-      function processImage(imageData) {
-        // Perform OCR using Tesseract.js
-        Tesseract.recognize(
-          imageData,
-          'eng',  // language code (English in this case)
-          { logger: info => console.log(info) }  // logger for debugging (optional)
-        ).then(({ data }) => {
-          const detectedText = data ? data.text.trim() : '';
-          textsFound.push(detectedText);
-          displayResult(textsFound);
-        }).catch(error => {
-          console.error('OCR error:', error);
-        });
-      }
-
-      function displayResult(texts) {
-        result.innerHTML = `<b>Detected Texts:</b><br>${texts.join('<br>')}`;
-      }
-    });
-  </script>
+    </script>
 </body>
 </html>
