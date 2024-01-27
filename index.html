@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SheIn Barcode Scanner</title>
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    #preview {
+      width: 100%;
+      max-width: 400px;
+    }
+
+    #result {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <input type="file" accept=".csv" id="fileInput">
+  <div id="preview"></div>
+  <div id="result"></div>
+
+  <script src="https://cdn.rawgit.com/serratus/quaggaJS/0.12.1/dist/quagga.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const fileInput = document.getElementById('fileInput');
+      const preview = document.getElementById('preview');
+      const result = document.getElementById('result');
+
+      fileInput.addEventListener('change', handleFile);
+
+      function handleFile(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const csvData = e.target.result;
+          processCSV(csvData);
+        };
+        reader.readAsText(file);
+      }
+
+      function initQuagga() {
+        Quagga.init({
+          inputStream: {
+            name: 'Live',
+            type: 'LiveStream',
+            target: preview,
+            constraints: {
+              width: 400,
+              height: 300,
+              facingMode: 'environment',
+            },
+          },
+          decoder: {
+            readers: ['ean_reader', 'upc_reader', 'code_128_reader'],
+          },
+        }, function (err) {
+          if (err) {
+            console.error(err);
+            return;
+          }
+          Quagga.start();
+        });
+
+        Quagga.onDetected(function (result) {
+          displayResult(result);
+          Quagga.stop();
+        });
+      }
+
+      function processCSV(csvData) {
+        const rows = csvData.split('\n');
+        const header = rows[0].split(',');
+        const data = rows.slice(1).map(row => row.split(','));
+
+        initQuagga();
+      }
+
+      function displayResult(result) {
+        const barcode = result.codeResult.code;
+        const index = header.indexOf(barcode);
+        if (index !== -1) {
+          const name = header[index - 1];
+          const price = data[index];
+          result.innerHTML = `Item belongs to: ${name}<br>Price: ${price}`;
+        } else {
+          result.innerHTML = 'Barcode not found in the CSV data.';
+        }
+      }
+
+      loadCSV();
+    });
+  </script>
+</body>
+</html>
