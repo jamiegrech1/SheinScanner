@@ -28,31 +28,33 @@
       width: 100%;
       max-width: 400px;
       margin-top: 20px;
-	  max-height:300px;
+      max-height: 300px;
     }
 
     #result {
       margin-top: 20px;
       font-size: 18px;
     }
-	video{
-	height:200px;
-	}
+
+    video {
+      height: 200px;
+    }
   </style>
 </head>
 <body>
   <div id="app-container">
     <h1>SheIn Code Detector</h1>
-    <div id="preview"></div>
+    <div id="preview" onclick="startScanning()"></div>
     <div id="result"></div>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.2/tesseract.min.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
       const preview = document.getElementById('preview');
       const result = document.getElementById('result');
       const textsFound = [];
+      let scanningPaused = false;
 
       // Fetch CSV data from the server
       fetch('order.csv')
@@ -66,37 +68,42 @@
 
             for (let i = 1; i < csvRows.length; i++) {
               const row = csvRows[i].split(',');
-              
 
               for (let j = 0; j < row.length; j += 2) {
                 const person = header[j].trim();
-				const code = row[j];
+                const code = row[j].trim();
                 const price = row[j + 1].trim();
-                const key = `${code}_${person}`;
-                csvDict[key] = { person, price };
+
+                // Skip empty items
+                if (code && price) {
+                  const key = `${code}_${person}`;
+                  csvDict[key] = { person, price };
+                }
               }
             }
 
             // Initialize camera stream
             navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-              .then(function(stream) {
+              .then(function (stream) {
                 const video = document.createElement('video');
                 preview.appendChild(video);
                 video.srcObject = stream;
                 video.play();
 
                 // Capture frames from the camera and process using Tesseract.js
-                setInterval(function() {
-                  const canvas = document.createElement('canvas');
-                  canvas.width = video.videoWidth;
-                  canvas.height = video.videoHeight;
-                  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+                setInterval(function () {
+                  if (!scanningPaused) {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
 
-                  const imageData = canvas.toDataURL('image/png');
-                  processImage(imageData, csvDict);
+                    const imageData = canvas.toDataURL('image/png');
+                    processImage(imageData, csvDict);
+                  }
                 }, 1000); // Adjust the interval as needed
               })
-              .catch(function(err) {
+              .catch(function (err) {
                 console.error('Error accessing camera:', err);
               });
           } else {
@@ -121,9 +128,18 @@
       }
 
       function displayResult(texts, ownerInfo) {
-        if (ownerInfo) {          
+        if (ownerInfo) {
           result.innerHTML = `<br>Item belongs to: ${ownerInfo.person} | Price: ${ownerInfo.price}` + result.innerHTML;
+          pauseScanning();
         }
+      }
+
+      function pauseScanning() {
+        scanningPaused = true;
+      }
+
+      function startScanning() {
+        scanningPaused = false;
       }
     });
   </script>
