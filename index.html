@@ -117,8 +117,7 @@
       }
 
       function displayResult(texts, ownerInfo) {
-        if (ownerInfo) {
-          result.innerHTML = `<b>Detected Texts:</b><br>${texts.join('<br>')}`;
+        if (ownerInfo) {          
           result.innerHTML += `<br>Item belongs to: ${ownerInfo.person} | Price: ${ownerInfo.price}`;
         }
       }
