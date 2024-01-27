@@ -1,97 +1,126 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Text Scanner</title>
-    <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            background-color: #f0f0f0;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SheIn Code Detector</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background-color: #f0f0f0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
 
-        #app-container {
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            text-align: center;
-        }
+    #app-container {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
 
-        #preview {
-            width: 100%;
-            max-width: 400px;
-            margin-top: 20px;
-        }
+    #preview {
+      width: 100%;
+      max-width: 400px;
+      margin-top: 20px;
+    }
 
-        #result {
-            margin-top: 20px;
-            font-size: 18px;
-        }
-    </style>
+    #result {
+      margin-top: 20px;
+      font-size: 18px;
+    }
+  </style>
 </head>
 <body>
-    <div id="app-container">
-        <h1>Text Scanner</h1>
-        <div id="preview"></div>
-        <div id="result"></div>
-    </div>
+  <div id="app-container">
+    <h1>SheIn Code Detector</h1>
+    <div id="preview"></div>
+    <div id="result"></div>
+  </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@google/ml-kit/barcode-scanning"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@google/ml-kit/text-recognition"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.2/tesseract.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const preview = document.getElementById('preview');
+      const result = document.getElementById('result');
+      const textsFound = [];
 
-    <script>
-        document.addEventListener('DOMContentLoaded', async function() {
-            const preview = document.getElementById('preview');
-            const result = document.getElementById('result');
+      // Fetch CSV data from the server
+      fetch('order.csv')
+        .then(response => response.text())
+        .then(csvData => {
+          // Convert CSV data to a dictionary for quick lookup
+          const csvRows = csvData.trim().split('\n');
+          const header = csvRows[0].split(',');
+          const csvDict = {};
 
-            // Initialize camera and barcode scanner
-            const camera = await navigator.mediaDevices.getUserMedia({ video: true });
-            const barcodeScanner = new MLKit.BarcodeScanner(camera);
+          for (let i = 1; i < csvRows.length; i++) {
+            const row = csvRows[i].split(',');
+            const code = row[0];
 
-            // Display live camera preview
-            const canvas = document.createElement('canvas');
-            canvas.width = camera.videoWidth;
-            canvas.height = camera.videoHeight;
-            const ctx = canvas.getContext('2d');
+            for (let j = 1; j < row.length; j += 2) {
+              const person = header[j].trim();
+              const price = row[j + 1].trim();
+              const key = `${code}_${person}`;
+              csvDict[key] = { person, price };
+            }
+          }
 
-            const videoStream = camera.getVideoTracks()[0];
-            videoStream.onended = () => {
-                result.innerHTML = 'Camera stream ended';
-            };
+          // Initialize camera stream
+          navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+            .then(function(stream) {
+              const video = document.createElement('video');
+              preview.appendChild(video);
+              video.srcObject = stream;
+              video.play();
 
-            preview.appendChild(canvas);
-            videoStream.getTracks()[0].ondataavailable = (event) => {
-                const dataURL = canvas.toDataURL('image/jpeg');
-                const image = new Image();
-                image.onload = () => {
-                    const result = await barcodeScanner.scan(image);
-                    if (result.text) {
-                        // Process and display text recognition result
-                        const textRecognizer = new MLKit.TextRecognizer();
-                        const text = await textRecognizer.processImage(image);
-                        const recognizedText = text.textBlocks.map((textBlock) => {
-                            return textBlock.text;
-                        });
+              // Capture frames from the camera and process using Tesseract.js
+              setInterval(function() {
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
 
-                        result.text = recognizedText.join('\n');
-                        result.forEach((text) => {
-                            result.innerHTML += `<p>${text}</p>`;
-                        });
-                    } else {
-                        // No text detected
-                        result.innerHTML = 'No text detected';
-                    }
-                };
-                image.src = dataURL;
-            };
+                const imageData = canvas.toDataURL('image/png');
+                processImage(imageData, csvDict);
+              }, 1000); // Adjust the interval as needed
+            })
+            .catch(function(err) {
+              console.error('Error accessing camera:', err);
+            });
+        })
+        .catch(error => {
+          console.error('Error fetching CSV:', error);
         });
-    </script>
+
+      async function processImage(imageData, csvDict) {
+        // Perform OCR using Tesseract.js
+        const { data: { text } } = await Tesseract.recognize(imageData);
+        const detectedText = text.trim();
+        textsFound.push(detectedText);
+
+        // Lookup owner in the CSV dictionary
+        const ownerKey = Object.keys(csvDict).find(key => detectedText.startsWith(key.split('_')[0]));
+        const ownerInfo = ownerKey ? csvDict[ownerKey] : null;
+
+        displayResult(textsFound, ownerInfo);
+      }
+
+      function displayResult(texts, ownerInfo) {
+        if (ownerInfo) {
+          result.innerHTML = `<b>Detected Texts:</b><br>${texts.join('<br>')}`;
+          result.innerHTML += `<br>Item belongs to: ${ownerInfo.person} | Price: ${ownerInfo.price}`;
+        } else {
+          result.innerHTML = `<b>Detected Texts:</b><br>${texts.join('<br>')}`;
+          result.innerHTML += `<br>Owner not found in CSV data.`;
+        }
+      }
+    });
+  </script>
 </body>
 </html>
