@@ -54,45 +54,49 @@
       fetch('order.csv')
         .then(response => response.text())
         .then(csvData => {
-          // Convert CSV data to a dictionary for quick lookup
-          const csvRows = csvData.trim().split('\n');
-          const header = csvRows[0].split(',');
-          const csvDict = {};
+          if (csvData) {
+            // Convert CSV data to a dictionary for quick lookup
+            const csvRows = csvData.trim().split('\n');
+            const header = csvRows[0].split(',');
+            const csvDict = {};
 
-          for (let i = 1; i < csvRows.length; i++) {
-            const row = csvRows[i].split(',');
-            const code = row[0];
+            for (let i = 1; i < csvRows.length; i++) {
+              const row = csvRows[i].split(',');
+              const code = row[0];
 
-            for (let j = 1; j < row.length; j += 2) {
-              const person = header[j].trim();
-              const price = row[j + 1].trim();
-              const key = `${code}_${person}`;
-              csvDict[key] = { person, price };
+              for (let j = 1; j < row.length; j += 2) {
+                const person = header[j].trim();
+                const price = row[j + 1].trim();
+                const key = `${code}_${person}`;
+                csvDict[key] = { person, price };
+              }
             }
+
+            // Initialize camera stream
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+              .then(function(stream) {
+                const video = document.createElement('video');
+                preview.appendChild(video);
+                video.srcObject = stream;
+                video.play();
+
+                // Capture frames from the camera and process using Tesseract.js
+                setInterval(function() {
+                  const canvas = document.createElement('canvas');
+                  canvas.width = video.videoWidth;
+                  canvas.height = video.videoHeight;
+                  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                  const imageData = canvas.toDataURL('image/png');
+                  processImage(imageData, csvDict);
+                }, 1000); // Adjust the interval as needed
+              })
+              .catch(function(err) {
+                console.error('Error accessing camera:', err);
+              });
+          } else {
+            console.error('Empty CSV data received.');
           }
-
-          // Initialize camera stream
-          navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-            .then(function(stream) {
-              const video = document.createElement('video');
-              preview.appendChild(video);
-              video.srcObject = stream;
-              video.play();
-
-              // Capture frames from the camera and process using Tesseract.js
-              setInterval(function() {
-                const canvas = document.createElement('canvas');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                const imageData = canvas.toDataURL('image/png');
-                processImage(imageData, csvDict);
-              }, 1000); // Adjust the interval as needed
-            })
-            .catch(function(err) {
-              console.error('Error accessing camera:', err);
-            });
         })
         .catch(error => {
           console.error('Error fetching CSV:', error);
